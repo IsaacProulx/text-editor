@@ -49,8 +49,6 @@ void handleInput() {
                 if(removeCharFromLine(curr, column-1) == 1) {
                     column--; 
                     printf("\x1b[2K");
-                    fflush(stdout);
-                    read(STDIN_FILENO, ch, 1);
                 }
                 break;
             case 0x1B:
