@@ -44,10 +44,13 @@ void handleInput() {
         readLen = read(STDIN_FILENO, ch, 4);
         switch(ch[0]) {
             case 0x7F:
-                //backspace 
+                //backspace
+                if(column == 1) break;
                 if(removeCharFromLine(curr, column-1) == 1) {
                     column--; 
-                    printf("\x1b[1G\x1b[K");
+                    printf("\x1b[2K");
+                    fflush(stdout);
+                    read(STDIN_FILENO, ch, 1);
                 }
                 break;
             case 0x1B:
@@ -72,6 +75,7 @@ void handleInput() {
                         break;
                     case 'C':
                         //right
+                        if(column > curr->len) break;
                         column++;
                         printf("\x1b[C");
                         break;
