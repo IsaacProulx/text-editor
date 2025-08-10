@@ -6,6 +6,36 @@
 #include <stdlib.h>
 #include "line.c"
 
+struct Tab {
+    char *path;
+    FILE *file; 
+    struct Line *head;
+    struct Line *tail;
+    struct Line *curr;
+};
+
+struct Tab *createTab(char *path) {
+    char *line;
+    size_t len = 0;
+    ssize_t read;
+    struct Tab *tab = malloc(sizeof(struct Tab));
+    tab->path = path;
+
+    tab->file = fopen(path, "r");
+    if(tab->file == NULL) {
+        printf("Failed to open file: %s\n", path);
+        return NULL;
+    }
+    read = getline(&line, &len, tab->file);
+    tab->head = tab->tail = createLineList(line, read);
+    while((read = getline(&line, &len, tab->file)) != -1) {
+        tab->tail = appendLine(tab->tail, line, read);
+    }
+    fclose(tab->file);
+
+    return tab;
+}
+
 void clearScreen() {
     printf("\x1b[1;1H\x1b[2J");
     fflush(stdout);
@@ -16,29 +46,26 @@ void displayLine(int x, int y, struct Line *line) {
     
 }
 
-void handleInput() {
+void handleInput(struct Tab *tab) {
     char run = 1;
     char ch[4];
     ssize_t readLen;
     char line = 1;
     char column = 1;
-    struct Line *curr;
-    struct Line *head;
-    struct Line *tail;
+    //struct Line *curr;
+    //struct Line *head;
+    //struct Line *tail;
 
-    head = tail = createLineList("First Text", 10);
-    tail = appendLine(tail, " More Text", 10);
-
-    curr = head; 
+    tab->curr = tab->head;
     int i = 1;
     for(;;) {
-        displayLine(1, i++, curr);
-        if(curr->next == NULL) break;
-        curr = curr->next;
+        displayLine(1, i++, tab->curr);
+        if(tab->curr->next == NULL) break;
+        tab->curr = tab->curr->next;
     }
     printf("\x1B[1;1H");
     fflush(stdout);
-    curr = head;
+    tab->curr = tab->head;
     
     while(run) {
         readLen = read(STDIN_FILENO, ch, 4);
@@ -46,7 +73,7 @@ void handleInput() {
             case 0x7F:
                 //backspace
                 if(column == 1) break;
-                if(removeCharFromLine(curr, column-1) == 1) {
+                if(removeCharFromLine(tab->curr, column-1) == 1) {
                     column--; 
                     printf("\x1b[2K");
                 }
@@ -62,18 +89,18 @@ void handleInput() {
                     case 'A':
                         //up
                         if(line == 1) break;
-                        curr = getLine(head, --line-1);
+                        tab->curr = getLine(tab->head, --line-1);
                         printf("\x1b[A");
                         break;
                     case 'B':
                         //down
-                        curr = getLine(head, line++);
-                        if(curr == NULL) curr = tail = appendLine(tail, "", 0);
+                        tab->curr = getLine(tab->head, line++);
+                        if(tab->curr == NULL) tab->curr = tab->tail = appendLine(tab->tail, "", 0);
                         printf("\x1b[B");
                         break;
                     case 'C':
                         //right
-                        if(column > curr->len) break;
+                        if(column > tab->curr->len) break;
                         column++;
                         printf("\x1b[C");
                         break;
@@ -91,7 +118,7 @@ void handleInput() {
             default:
                 if(ch[0] <= 'z' && ch[0] >= 'a') {
                     //printf("%c", ch[0]);
-                    addCharToLine(curr, column-1, ch[0]);
+                    addCharToLine(tab->curr, column-1, ch[0]);
                     column++;
                 } else {
                     printf("%c:%d", ch[0],ch[0]);
@@ -99,7 +126,7 @@ void handleInput() {
         }
         //int i = 1;
         //for(;;) {
-        displayLine(1, line, curr);
+        displayLine(1, line, tab->curr);
         printf("\x1B[%d;%dH", line, column);
         fflush(stdout);
             //if(curr->next == NULL) break;
@@ -108,7 +135,8 @@ void handleInput() {
         //fflush(stdout);
     }
 
-    freeLines(head);
+    freeLines(tab->head);
+    free(tab);
 }
 
 
@@ -130,7 +158,11 @@ int main(int argc, char **argv) {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &newTerm);
     clearScreen();
 
-    handleInput();
+    struct Tab *tab;
+    if(argc == 2) {
+        tab = createTab(argv[1]);
+    }
+    handleInput(tab);
         
     tcsetattr(STDIN_FILENO, TCSANOW, &oldTerm);
     clearScreen();

@@ -26,6 +26,8 @@ struct Line* createLineList(char *text, uint16_t len) {
 }
 
 struct Line* appendLine(struct Line *tail, char *text, uint16_t len) {
+    if(tail == NULL) return createLineList(text, len);
+
     struct Line temp;
     temp.next = NULL;
     temp.prev = tail;
